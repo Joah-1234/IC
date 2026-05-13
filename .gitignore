@@ -1,0 +1,6 @@
+.agents/
+.codex/
+assets/
+epoch/
+results/
+weights/

@@ -1,0 +1,5 @@
+method,acer,hter,auc
+CNN Baseline,18.5,20.1,91.2
+ResNet,14.7,15.3,94.0
+ViT,11.2,12.8,96.1
+Ours,8.9,10.4,97.8

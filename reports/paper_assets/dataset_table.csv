@@ -1,0 +1,5 @@
+dataset,live,spoof,attack_type
+OULU-NPU,64708,262598,Print/Replay
+CASIA-MFSD,7801,14239,Replay
+ReplayAttack,7600,23495,Print/Video
+MSU-MFSD,1053,2966,Replay
