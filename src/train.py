@@ -78,6 +78,7 @@ def main():
     print(f"Protocol      : {Config.PROTOCOL_NAME}")
     print(f"Train domains : {[os.path.basename(path) for path in Config.TRAIN_SOURCE_PATHS]}")
     print(f"Target domain : {os.path.basename(Config.TEST_TARGET_PATH)}")
+    print(f"Backbone      : {Config.BACKBONE_NAME}")
     print(f"Device        : {device}")
     print(f"AMP enabled   : {use_amp}")
     print(f"Spoof ratio cap: {Config.TRAIN_MAX_SPOOF_RATIO}")
@@ -105,10 +106,13 @@ def main():
         scale=Config.SCALE,
         margin=Config.MARGIN,
         pretrained_weight_path=Config.PRETRAINED_WEIGHT_PATH,
+        backbone_name=Config.BACKBONE_NAME,
     ).to(device)
     report = model.weight_load_report
     print(report["message"])
     if report.get("loaded"):
+        print(f"  -> Backbone: {report.get('backbone_name', Config.BACKBONE_NAME)}")
+        print(f"  -> Feature dim: {report.get('feature_dim', 'unknown')}")
         print(f"  -> Weight path: {report.get('weight_path', '')}")
         print(
             "  -> Load summary: "

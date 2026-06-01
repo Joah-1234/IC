@@ -71,6 +71,11 @@ PROTOCOL_NAME = "ICM_to_O"
 PREPROCESS_MODE = "sampled"
 SAMPLED_FRAME_COUNT = 32
 
+# 模型配置
+# 方案一轻量化入口：可在 vit_base_patch16_224 / vit_small_patch16_224 /
+# vit_tiny_patch16_224 之间切换。ArcFace 输入维度会由 timm 模型自动推断。
+BACKBONE_NAME = "vit_base_patch16_224"
+
 # 训练超参数
 IMG_SIZE = 224
 BATCH_SIZE = 64
@@ -115,6 +120,7 @@ class ProjectPaths:
 @dataclass(frozen=True)
 class ExperimentConfig:
     protocol_name: str
+    backbone_name: str
     preprocess_mode: str
     sampled_frame_count: int
     img_size: int
@@ -155,6 +161,7 @@ class Config:
 
     EXP = ExperimentConfig(
         protocol_name=PROTOCOL_NAME,
+        backbone_name=BACKBONE_NAME,
         preprocess_mode=PREPROCESS_MODE,
         sampled_frame_count=SAMPLED_FRAME_COUNT,
         img_size=IMG_SIZE,
@@ -217,6 +224,7 @@ class Config:
         )
 
     PROTOCOL_NAME = EXP.protocol_name
+    BACKBONE_NAME = EXP.backbone_name
     PREPROCESS_MODE = EXP.preprocess_mode
     SAMPLED_FRAME_COUNT = EXP.sampled_frame_count
     TRAIN_SOURCE_PATHS = PROTOCOLS[PROTOCOL_NAME]["train_source_paths"]

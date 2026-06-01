@@ -1,0 +1,4 @@
+model,timm_name,embed_dim,depth,heads,patch_tokens_224,params_m,params_reduction,arcface_params,suggested_stage,risk
+ViT-Base/16,vit_base_patch16_224,768,12,12,196,85.8,baseline,1536,原始基线,精度稳定但训练/推理开销最大
+ViT-Small/16,vit_small_patch16_224,384,12,6,196,21.7,约减少 75%,768,首选轻量化实验,通常速度/显存收益明显，精度下降相对可控
+ViT-Tiny/16,vit_tiny_patch16_224,192,12,3,196,5.7,约减少 93%,384,极限压缩实验,速度最快但跨域泛化精度下降风险最高
