@@ -1,0 +1,9 @@
+\begin{tabular}{llrrrrll}
+\toprule
+模型 & timm名称 & 维度 & 层数 & 头数 & Token数 & 参数量(M) & 定位 \\
+\midrule
+ViT-Base/16 & vit\_base\_patch16\_224 & 768 & 12 & 12 & 196 & 85.8 & 原始基线 \\
+ViT-Small/16 & vit\_small\_patch16\_224 & 384 & 12 & 6 & 196 & 21.7 & 首选轻量化实验 \\
+ViT-Tiny/16 & vit\_tiny\_patch16\_224 & 192 & 12 & 3 & 196 & 5.7 & 极限压缩实验 \\
+\bottomrule
+\end{tabular}

@@ -212,7 +212,8 @@ def sample_group(root_paths, label_name: str, label_value: int, max_points: int)
 
 def extract_features(model, image_infos: Sequence[Tuple[str, int]], device, batch_size: int) -> Tuple[np.ndarray, np.ndarray]:
     if not image_infos:
-        return np.empty((0, 768), dtype=np.float32), np.empty((0,), dtype=np.int64)
+        feature_dim = int(getattr(model, "feature_dim", 0))
+        return np.empty((0, feature_dim), dtype=np.float32), np.empty((0,), dtype=np.int64)
 
     _, test_transform = get_transforms(Config.IMG_SIZE)
     dataset = PathImageDataset(image_infos, test_transform)
@@ -244,10 +245,14 @@ def plot_protocol_tsne(metrics: dict, save_path: str, max_points_per_group: int 
 
     device = torch.device(Config.DEVICE)
     checkpoint = torch.load(resolve_model_path(metrics), map_location=device)
+    checkpoint_config = checkpoint.get("config", {}) if isinstance(checkpoint, dict) else {}
+    backbone_name = checkpoint_config.get("backbone_name", Config.BACKBONE_NAME)
     model = TACL_ViT(
         scale=Config.SCALE,
         margin=Config.MARGIN,
         pretrained_weight_path="",
+        backbone_name=backbone_name,
+        pretrained_init_mode="none",
     ).to(device)
     state_dict = checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint
     model.load_state_dict(state_dict)
