@@ -162,10 +162,14 @@ def main():
     print(f"Loading checkpoint: {model_path}")
 
     checkpoint = torch.load(model_path, map_location=device)
+    checkpoint_config = checkpoint.get("config", {}) if isinstance(checkpoint, dict) else {}
+    backbone_name = checkpoint_config.get("backbone_name", Config.BACKBONE_NAME)
+    print(f"Backbone      : {backbone_name}")
     model = TACL_ViT(
         scale=Config.SCALE,
         margin=Config.MARGIN,
         pretrained_weight_path="",
+        backbone_name=backbone_name,
     ).to(device)
 
     state_dict = checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint

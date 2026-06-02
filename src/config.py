@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,23 @@ import torch
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _env_optional_str(name: str, default: Optional[str] = None) -> Optional[str]:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if value.lower() in {"", "none", "null"}:
+        return None
+    return value
+
+
+def _env_str(name: str, default: str) -> str:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip()
 
 
 # ============================================================
@@ -21,9 +39,15 @@ MTCNN_OUTPUT_ROOT = PROJECT_ROOT / "data" / "mtcnn_output"
 PROCESSED_DATA_ROOT = PROJECT_ROOT / "data" / "processed"
 
 # 预训练权重：
-# 1. 如果你有 ViT 预训练权重，就放到 weights/model.safetensors 或改成别的路径
-# 2. 如果你没有，就保持 None，训练会从随机初始化开始
-PRETRAINED_WEIGHT_PATH = None
+# 1. 默认使用 timm 官方 ImageNet 预训练初始化，避免 ViT 从随机权重开始训练。
+# 2. 如果服务器不能联网，可提前下载对应 backbone 的权重并设置 PRETRAINED_INIT_MODE = "local"。
+# 3. 可选模式："timm"（官方预训练）、"local"（本地权重）、"none"（随机初始化）。
+PRETRAINED_WEIGHT_PATH = _env_optional_str("SRTP_PRETRAINED_WEIGHT_PATH", None)
+PRETRAINED_INIT_MODE = _env_str(
+    "SRTP_PRETRAINED_INIT_MODE",
+    "local" if PRETRAINED_WEIGHT_PATH else "timm",
+).lower()
+MIN_PRETRAINED_MATCH_RATIO = float(_env_str("SRTP_MIN_PRETRAINED_MATCH_RATIO", "0.5"))
 
 # 使用哪些数据集
 DATASET_NAMES = [
@@ -71,6 +95,11 @@ PROTOCOL_NAME = "ICM_to_O"
 PREPROCESS_MODE = "sampled"
 SAMPLED_FRAME_COUNT = 32
 
+# 模型配置
+# 方案一轻量化入口：可在 vit_base_patch16_224 / vit_small_patch16_224 /
+# vit_tiny_patch16_224 之间切换。ArcFace 输入维度会由 timm 模型自动推断。
+BACKBONE_NAME = _env_str("SRTP_BACKBONE_NAME", "vit_base_patch16_224")
+
 # 训练超参数
 IMG_SIZE = 224
 BATCH_SIZE = 64
@@ -115,6 +144,9 @@ class ProjectPaths:
 @dataclass(frozen=True)
 class ExperimentConfig:
     protocol_name: str
+    backbone_name: str
+    pretrained_init_mode: str
+    min_pretrained_match_ratio: float
     preprocess_mode: str
     sampled_frame_count: int
     img_size: int
@@ -155,6 +187,9 @@ class Config:
 
     EXP = ExperimentConfig(
         protocol_name=PROTOCOL_NAME,
+        backbone_name=BACKBONE_NAME,
+        pretrained_init_mode=PRETRAINED_INIT_MODE,
+        min_pretrained_match_ratio=MIN_PRETRAINED_MATCH_RATIO,
         preprocess_mode=PREPROCESS_MODE,
         sampled_frame_count=SAMPLED_FRAME_COUNT,
         img_size=IMG_SIZE,
@@ -185,6 +220,12 @@ class Config:
     MTCNN_OUTPUT_ROOT = PATHS.mtcnn_output_root
     PROCESSED_ROOT = PATHS.processed_root
     PRETRAINED_WEIGHT_PATH = PATHS.pretrained_weight_path
+
+    if PRETRAINED_INIT_MODE not in {"timm", "local", "none"}:
+        raise ValueError(
+            f"Unsupported PRETRAINED_INIT_MODE '{PRETRAINED_INIT_MODE}'. "
+            "Available options: timm, local, none."
+        )
 
     PATH_O = str(Path(PROCESSED_ROOT) / "oulu-npu")
     PATH_C = str(Path(PROCESSED_ROOT) / "CASIA-MFSD")
@@ -217,6 +258,9 @@ class Config:
         )
 
     PROTOCOL_NAME = EXP.protocol_name
+    BACKBONE_NAME = EXP.backbone_name
+    PRETRAINED_INIT_MODE = EXP.pretrained_init_mode
+    MIN_PRETRAINED_MATCH_RATIO = EXP.min_pretrained_match_ratio
     PREPROCESS_MODE = EXP.preprocess_mode
     SAMPLED_FRAME_COUNT = EXP.sampled_frame_count
     TRAIN_SOURCE_PATHS = PROTOCOLS[PROTOCOL_NAME]["train_source_paths"]

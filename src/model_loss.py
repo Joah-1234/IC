@@ -85,31 +85,97 @@ class ArcFaceLayer(nn.Module):
 
 
 class TACL_ViT(nn.Module):
-    def __init__(self, scale: float = 30.0, margin: float = 0.5, pretrained_weight_path: str = ""):
+    def __init__(
+        self,
+        scale: float = 30.0,
+        margin: float = 0.5,
+        pretrained_weight_path: str = "",
+        backbone_name: str = "vit_base_patch16_224",
+        pretrained_init_mode: str = "none",
+    ):
         super().__init__()
-        self.backbone = timm.create_model(
-            "vit_base_patch16_224",
-            pretrained=False,
-            num_classes=0,
-        )
-        self.arc_head = ArcFaceLayer(in_features=768, out_features=2, s=scale, m=margin)
+        self.backbone_name = backbone_name
+        self.pretrained_init_mode = (pretrained_init_mode or "none").strip().lower()
+        if self.pretrained_init_mode not in {"timm", "local", "none"}:
+            raise ValueError(
+                f"Unsupported pretrained_init_mode '{pretrained_init_mode}'. "
+                "Available options: timm, local, none."
+            )
+        self.backbone = self._create_backbone()
+        self.feature_dim = self._resolve_feature_dim()
+        self.arc_head = ArcFaceLayer(in_features=self.feature_dim, out_features=2, s=scale, m=margin)
         self.pretrained_weight_path = pretrained_weight_path.strip()
-        self.weight_load_report = self._load_backbone_weights(self.pretrained_weight_path)
+        self.weight_load_report = self._build_weight_load_report()
+
+    def _create_backbone(self) -> nn.Module:
+        use_timm_pretrained = self.pretrained_init_mode == "timm"
+        try:
+            return timm.create_model(
+                self.backbone_name,
+                pretrained=use_timm_pretrained,
+                num_classes=0,
+            )
+        except Exception as exc:
+            if use_timm_pretrained:
+                raise RuntimeError(
+                    "Failed to initialize timm pretrained backbone. "
+                    "Check network/cache availability, or set PRETRAINED_INIT_MODE='local' "
+                    "with PRETRAINED_WEIGHT_PATH, or PRETRAINED_INIT_MODE='none'."
+                ) from exc
+            raise
+
+    def _base_weight_report(self, loaded: bool, source: str, message: str, weight_path: str = "") -> Dict[str, object]:
+        return {
+            "weight_path": weight_path,
+            "loaded": loaded,
+            "source": source,
+            "pretrained_init_mode": self.pretrained_init_mode,
+            "backbone_name": self.backbone_name,
+            "feature_dim": self.feature_dim,
+            "message": message,
+        }
+
+    def _build_weight_load_report(self) -> Dict[str, object]:
+        if self.pretrained_init_mode == "timm":
+            return self._base_weight_report(
+                loaded=True,
+                source="timm",
+                message="Backbone initialized from timm ImageNet pretrained weights.",
+            )
+        if self.pretrained_init_mode == "none":
+            return self._base_weight_report(
+                loaded=False,
+                source="none",
+                message="Pretrained initialization disabled. Backbone uses random initialization.",
+            )
+        return self._load_backbone_weights(self.pretrained_weight_path)
+
+    def _resolve_feature_dim(self) -> int:
+        feature_dim = getattr(self.backbone, "num_features", None)
+        if feature_dim is None:
+            feature_dim = getattr(self.backbone, "embed_dim", None)
+        if feature_dim is None:
+            raise AttributeError(
+                f"Cannot infer feature dimension for backbone '{self.backbone_name}'. "
+                "Please choose a timm ViT backbone exposing num_features or embed_dim."
+            )
+        return int(feature_dim)
 
     def _load_backbone_weights(self, weight_path: str) -> Dict[str, object]:
         if not weight_path:
-            return {
-                "weight_path": "",
-                "loaded": False,
-                "message": "No pretrained weight path configured. Backbone uses random initialization.",
-            }
+            return self._base_weight_report(
+                loaded=False,
+                source="local",
+                message="PRETRAINED_INIT_MODE is local, but no pretrained weight path is configured.",
+            )
 
         if not os.path.exists(weight_path):
-            return {
-                "weight_path": weight_path,
-                "loaded": False,
-                "message": "Configured pretrained weight file does not exist.",
-            }
+            return self._base_weight_report(
+                loaded=False,
+                source="local",
+                weight_path=weight_path,
+                message="Configured pretrained weight file does not exist.",
+            )
 
         try:
             if weight_path.endswith(".safetensors"):
@@ -127,8 +193,12 @@ class TACL_ViT(nn.Module):
                 load_result.unexpected_keys,
             )
             return {
-                "weight_path": weight_path,
-                "loaded": True,
+                **self._base_weight_report(
+                    loaded=True,
+                    source="local",
+                    weight_path=weight_path,
+                    message="",
+                ),
                 **summary,
                 "message": (
                     "Backbone weights loaded with strict=False. "
@@ -139,11 +209,12 @@ class TACL_ViT(nn.Module):
                 ),
             }
         except Exception as exc:
-            return {
-                "weight_path": weight_path,
-                "loaded": False,
-                "message": f"Failed to load pretrained weights: {exc}",
-            }
+            return self._base_weight_report(
+                loaded=False,
+                source="local",
+                weight_path=weight_path,
+                message=f"Failed to load pretrained weights: {exc}",
+            )
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         features = self.backbone.forward_features(x)
