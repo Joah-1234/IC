@@ -102,6 +102,14 @@ class TACL_ViT(nn.Module):
                 "Available options: timm, local, none."
             )
         self.backbone = self._create_backbone()
+    ):
+        super().__init__()
+        self.backbone_name = backbone_name
+        self.backbone = timm.create_model(
+            backbone_name,
+            pretrained=False,
+            num_classes=0,
+        )
         self.feature_dim = self._resolve_feature_dim()
         self.arc_head = ArcFaceLayer(in_features=self.feature_dim, out_features=2, s=scale, m=margin)
         self.pretrained_weight_path = pretrained_weight_path.strip()
@@ -161,6 +169,17 @@ class TACL_ViT(nn.Module):
             )
         return int(feature_dim)
 
+    def _resolve_feature_dim(self) -> int:
+        feature_dim = getattr(self.backbone, "num_features", None)
+        if feature_dim is None:
+            feature_dim = getattr(self.backbone, "embed_dim", None)
+        if feature_dim is None:
+            raise AttributeError(
+                f"Cannot infer feature dimension for backbone '{self.backbone_name}'. "
+                "Please choose a timm ViT backbone exposing num_features or embed_dim."
+            )
+        return int(feature_dim)
+
     def _load_backbone_weights(self, weight_path: str) -> Dict[str, object]:
         if not weight_path:
             return self._base_weight_report(
@@ -176,6 +195,30 @@ class TACL_ViT(nn.Module):
                 weight_path=weight_path,
                 message="Configured pretrained weight file does not exist.",
             )
+
+        if not os.path.exists(weight_path):
+            return self._base_weight_report(
+                loaded=False,
+                source="local",
+                weight_path=weight_path,
+                message="Configured pretrained weight file does not exist.",
+            )
+            return {
+                "weight_path": "",
+                "loaded": False,
+                "backbone_name": self.backbone_name,
+                "feature_dim": self.feature_dim,
+                "message": "No pretrained weight path configured. Backbone uses random initialization.",
+            }
+
+        if not os.path.exists(weight_path):
+            return {
+                "weight_path": weight_path,
+                "loaded": False,
+                "backbone_name": self.backbone_name,
+                "feature_dim": self.feature_dim,
+                "message": "Configured pretrained weight file does not exist.",
+            }
 
         try:
             if weight_path.endswith(".safetensors"):
@@ -199,6 +242,10 @@ class TACL_ViT(nn.Module):
                     weight_path=weight_path,
                     message="",
                 ),
+                "weight_path": weight_path,
+                "loaded": True,
+                "backbone_name": self.backbone_name,
+                "feature_dim": self.feature_dim,
                 **summary,
                 "message": (
                     "Backbone weights loaded with strict=False. "
@@ -215,6 +262,13 @@ class TACL_ViT(nn.Module):
                 weight_path=weight_path,
                 message=f"Failed to load pretrained weights: {exc}",
             )
+            return {
+                "weight_path": weight_path,
+                "loaded": False,
+                "backbone_name": self.backbone_name,
+                "feature_dim": self.feature_dim,
+                "message": f"Failed to load pretrained weights: {exc}",
+            }
 
     def forward(self, x: torch.Tensor, labels: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         features = self.backbone.forward_features(x)

@@ -99,6 +99,7 @@ SAMPLED_FRAME_COUNT = 32
 # 方案一轻量化入口：可在 vit_base_patch16_224 / vit_small_patch16_224 /
 # vit_tiny_patch16_224 之间切换。ArcFace 输入维度会由 timm 模型自动推断。
 BACKBONE_NAME = _env_str("SRTP_BACKBONE_NAME", "vit_base_patch16_224")
+BACKBONE_NAME = "vit_base_patch16_224"
 
 # 训练超参数
 IMG_SIZE = 224

@@ -62,6 +62,7 @@ Backbone initialized from timm ImageNet pretrained weights.
 
 ```text
 weights/vit_base_patch16_224.pth
+weights/vit_base_patch16_224.safetensors
 ```
 
 然后运行：
@@ -70,6 +71,7 @@ weights/vit_base_patch16_224.pth
 export SRTP_BACKBONE_NAME="vit_base_patch16_224"
 export SRTP_PRETRAINED_INIT_MODE="local"
 export SRTP_PRETRAINED_WEIGHT_PATH="weights/vit_base_patch16_224.pth"
+export SRTP_PRETRAINED_WEIGHT_PATH="weights/vit_base_patch16_224.safetensors"
 python src/train.py
 ```
 
@@ -87,6 +89,11 @@ matched=.../...，missing=...，unexpected=...
 
 ```bash
 # 轻量化 Small 对照
+### 4.3 轻量化实验建议
+
+在确认 ViT-Base + 预训练能够改善结果后，再切换轻量模型：
+
+```bash
 export SRTP_BACKBONE_NAME="vit_small_patch16_224"
 export SRTP_PRETRAINED_INIT_MODE="timm"
 python src/train.py
@@ -100,6 +107,9 @@ python src/test.py
 ```
 
 不要混用 ViT-Base、ViT-Small、ViT-Tiny 的本地权重；本地权重必须与 `SRTP_BACKBONE_NAME` 对应。
+```
+
+不要把 ViT-Base 的本地权重直接加载到 ViT-Small/Tiny；本地权重必须与 `SRTP_BACKBONE_NAME` 对应。
 
 ## 5. 后续观察重点
 
