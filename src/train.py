@@ -119,6 +119,13 @@ def main():
     ).to(device)
     report = model.weight_load_report
     print(report["message"])
+    print(f"  -> Backbone: {report.get('backbone_name', Config.BACKBONE_NAME)}")
+    print(f"  -> Feature dim: {report.get('feature_dim', 'unknown')}")
+    print(f"  -> Pretrain source: {report.get('source', 'unknown')}")
+    if report.get("weight_path"):
+    ).to(device)
+    report = model.weight_load_report
+    print(report["message"])
     if report.get("loaded"):
         print(f"  -> Backbone: {report.get('backbone_name', Config.BACKBONE_NAME)}")
         print(f"  -> Feature dim: {report.get('feature_dim', 'unknown')}")

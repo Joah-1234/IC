@@ -195,6 +195,14 @@ class TACL_ViT(nn.Module):
                 weight_path=weight_path,
                 message="Configured pretrained weight file does not exist.",
             )
+
+        if not os.path.exists(weight_path):
+            return self._base_weight_report(
+                loaded=False,
+                source="local",
+                weight_path=weight_path,
+                message="Configured pretrained weight file does not exist.",
+            )
             return {
                 "weight_path": "",
                 "loaded": False,

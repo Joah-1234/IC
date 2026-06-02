@@ -25,6 +25,9 @@
 
 建议按以下顺序开展实验：
 
+1. 当前默认恢复为 `BACKBONE_NAME = "vit_base_patch16_224"`，作为原始基线；
+2. 如需轻量化主实验，再临时设置 `BACKBONE_NAME = "vit_small_patch16_224"`；
+3. 如需极限压缩，再临时设置 `BACKBONE_NAME = "vit_tiny_patch16_224"`；
 1. 保持 `BACKBONE_NAME = "vit_base_patch16_224"`，作为原始基线；
 2. 修改为 `BACKBONE_NAME = "vit_small_patch16_224"`，作为主推轻量化模型；
 3. 修改为 `BACKBONE_NAME = "vit_tiny_patch16_224"`，作为极限压缩对照；
@@ -39,6 +42,8 @@
 # 生成轻量化方案表格
 python src/generate_vit_lightweight_table.py
 
+# 当前默认训练 ViT-Base；也可显式指定
+SRTP_BACKBONE_NAME="vit_base_patch16_224" python src/train.py
 # 训练当前 BACKBONE_NAME 指定的模型
 python src/train.py
 
@@ -57,6 +62,7 @@ python src/test.py
 ## 6. 注意事项
 
 - 当前代码支持 `PRETRAINED_INIT_MODE = "timm"` / `"local"` / `"none"` 三种初始化方式；默认推荐 `"timm"`，即使用 timm 官方 ImageNet 预训练。
+- 服务器上可用环境变量临时切换，例如 `SRTP_BACKBONE_NAME="vit_base_patch16_224" SRTP_PRETRAINED_INIT_MODE="timm" python src/train.py`。
 - 服务器上可用环境变量临时切换，例如 `SRTP_BACKBONE_NAME="vit_small_patch16_224" SRTP_PRETRAINED_INIT_MODE="timm" python src/train.py`。
 - 使用本地权重时，训练脚本会检查权重匹配率，默认低于 `50%` 会停止训练，避免继续使用错误初始化。
 - 如果使用外部预训练权重，权重结构必须与当前 `BACKBONE_NAME` 匹配。例如 ViT-Base 权重不能直接完整加载到 ViT-Small。
