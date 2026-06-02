@@ -79,6 +79,7 @@ def main():
     print(f"Train domains : {[os.path.basename(path) for path in Config.TRAIN_SOURCE_PATHS]}")
     print(f"Target domain : {os.path.basename(Config.TEST_TARGET_PATH)}")
     print(f"Backbone      : {Config.BACKBONE_NAME}")
+    print(f"Pretrain mode : {Config.PRETRAINED_INIT_MODE}")
     print(f"Device        : {device}")
     print(f"AMP enabled   : {use_amp}")
     print(f"Spoof ratio cap: {Config.TRAIN_MAX_SPOOF_RATIO}")
@@ -107,6 +108,14 @@ def main():
         margin=Config.MARGIN,
         pretrained_weight_path=Config.PRETRAINED_WEIGHT_PATH,
         backbone_name=Config.BACKBONE_NAME,
+        pretrained_init_mode=Config.PRETRAINED_INIT_MODE,
+    ).to(device)
+    report = model.weight_load_report
+    print(report["message"])
+    print(f"  -> Backbone: {report.get('backbone_name', Config.BACKBONE_NAME)}")
+    print(f"  -> Feature dim: {report.get('feature_dim', 'unknown')}")
+    print(f"  -> Pretrain source: {report.get('source', 'unknown')}")
+    if report.get("weight_path"):
     ).to(device)
     report = model.weight_load_report
     print(report["message"])
@@ -114,6 +123,7 @@ def main():
         print(f"  -> Backbone: {report.get('backbone_name', Config.BACKBONE_NAME)}")
         print(f"  -> Feature dim: {report.get('feature_dim', 'unknown')}")
         print(f"  -> Weight path: {report.get('weight_path', '')}")
+    if report.get("num_model_keys") is not None:
         print(
             "  -> Load summary: "
             f"matched={report.get('num_matched_keys', 0)}/"
@@ -126,6 +136,24 @@ def main():
             print(f"  -> Missing key examples: {report['missing_key_examples'][:5]}")
         if report.get("unexpected_key_examples"):
             print(f"  -> Unexpected key examples: {report['unexpected_key_examples'][:5]}")
+
+    if Config.PRETRAINED_INIT_MODE != "none" and not report.get("loaded"):
+        raise RuntimeError(
+            "Pretrained initialization was requested but no pretrained weights were loaded. "
+            "Use PRETRAINED_INIT_MODE='timm' with network/cache, provide a valid local "
+            "PRETRAINED_WEIGHT_PATH, or explicitly set PRETRAINED_INIT_MODE='none'."
+        )
+    matched_ratio = report.get("matched_ratio")
+    if (
+        Config.PRETRAINED_INIT_MODE == "local"
+        and matched_ratio is not None
+        and matched_ratio < Config.MIN_PRETRAINED_MATCH_RATIO
+    ):
+        raise RuntimeError(
+            f"Local pretrained weight match ratio is too low: {matched_ratio:.1%}. "
+            f"Expected at least {Config.MIN_PRETRAINED_MATCH_RATIO:.1%}. "
+            "Please check that PRETRAINED_WEIGHT_PATH matches BACKBONE_NAME."
+        )
 
     loss_tac_fn = TACLoss(temp=Config.TEMP, max_live_tokens=Config.MAX_LIVE_TOKENS).to(device)
     loss_am_fn = nn.CrossEntropyLoss().to(device)
